@@ -13,11 +13,11 @@ colcon build
 
 ### Using WSL (Windows Subsystem for Linux)
 
-Windows part
+# Windows part
 1. Download the simulator for Windows: https://github.com/Tinker-Twins/AutoDRIVE/releases/download/Simulator-0.3.0/AutoDRIVE_Simulator_Windows.zip
 2. Unzip the downloaded folder.
 3. Run the AutoDRIVE Simulator Application located inside the previously unzipped folder.
-WSL Ubuntu 20.04 part
+# WSL Ubuntu 20.04 part
 1. Install dependencies. Keeping the versions is important:
 ```bash
 pip3 install eventlet==0.33.3
