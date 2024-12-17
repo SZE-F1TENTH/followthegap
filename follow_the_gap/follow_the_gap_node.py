@@ -24,20 +24,27 @@ class FollowTheGapNode(Node):
         self.marker_pub = self.create_publisher(Marker, '/visualization_marker', 10)
 
     def scan_callback(self, scan_data):
-        # Preprocess scan data
-        ranges = np.array(scan_data.ranges)
-        ranges[np.isinf(ranges)] = scan_data.range_max
-        safe_ranges = np.where(ranges > self.safety_radius, ranges, 0)
+            # Preprocess scan data
+            ranges = np.array(scan_data.ranges)
+            ranges[np.isinf(ranges)] = scan_data.range_max
 
-        # Find the best direction based on the largest gap
-        best_angle = self.find_best_gap(safe_ranges, scan_data.angle_min, scan_data.angle_increment)
+            # Define the angle range (10 degrees in front of the LIDAR)
+            angle_range = 10 * (np.pi / 180)  # Convert degrees to radians
+            center_index = len(ranges) // 4
+            angle_increment = scan_data.angle_increment
+            range_indices = int(angle_range / angle_increment)
+            front_indices = ranges[center_index - range_indices // 2 : center_index + range_indices // 2]
 
-        # Publish drive command
-        self.publish_drive_command(best_angle)
-
-        # Publish marker for steering path
-        self.publish_steer_marker(best_angle)
-
+            # Check for obstacles within the safety radius in the specified range
+            if np.any(front_indices < self.safety_radius):
+                self.publish_stop_command()
+                self.get_logger().info("Obstacle detected in front! Stopping the car.")
+            else:
+                safe_ranges = np.where(ranges > self.safety_radius, ranges, 0)
+                best_angle = self.find_best_gap(safe_ranges, scan_data.angle_min, scan_data.angle_increment)
+                self.get_logger().info(f"best_angle = {best_angle} \n  safe_ranges={safe_ranges} \n ranges={ranges}")
+                self.publish_drive_command(best_angle)
+                self.publish_steer_marker(best_angle)
     def find_best_gap(self, ranges, angle_min, angle_increment):
         safe_indices = np.where(ranges > 0)[0]
         if len(safe_indices) == 0:
