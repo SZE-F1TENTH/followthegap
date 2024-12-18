@@ -13,7 +13,7 @@ class FollowTheGapNode(Node):
 
         # Parameters
         self.safety_radius = 2.0       # Minimum safe distance from obstacles
-        self.max_throttle = 0.5       # Fixed throttle value (in m/s)
+        self.max_throttle = 1.5       # Fixed throttle value (in m/s)
         self.steering_sensitivity = 0.2  # Adjust sensitivity as needed
         self.max_steering_angle = 0.52  # Steering angle limit in radians
         self.wheelbase = 0.2            # Approximate wheelbase length in meters
