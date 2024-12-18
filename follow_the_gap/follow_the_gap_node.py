@@ -13,7 +13,7 @@ class FollowTheGapNode(Node):
 
         # Parameters
         self.safety_radius = 2.0       # Minimum safe distance from obstacles
-        self.max_throttle = 0.5       # Fixed throttle value (in m/s)
+        self.max_throttle = 1.5       # Fixed throttle value (in m/s)
         self.steering_sensitivity = 0.2  # Adjust sensitivity as needed
         self.max_steering_angle = 0.52  # Steering angle limit in radians
         self.wheelbase = 0.2            # Approximate wheelbase length in meters
@@ -24,19 +24,29 @@ class FollowTheGapNode(Node):
         self.marker_pub = self.create_publisher(Marker, '/visualization_marker', 10)
 
     def scan_callback(self, scan_data):
-        # Preprocess scan data
-        ranges = np.array(scan_data.ranges)
-        ranges[np.isinf(ranges)] = scan_data.range_max
-        safe_ranges = np.where(ranges > self.safety_radius, ranges, 0)
+            # Preprocess scan data
+            ranges = np.array(scan_data.ranges)
+            ranges[np.isinf(ranges)] = scan_data.range_max
 
-        # Find the best direction based on the largest gap
-        best_angle = self.find_best_gap(safe_ranges, scan_data.angle_min, scan_data.angle_increment)
+            # Define the angle range (10 degrees in front of the LIDAR)
+            angle_range = 10 * (np.pi / 180)  # Convert degrees to radians
+            center_index = len(ranges) // 2
+            self.get_logger().info(f"center_index={center_index}")
+            angle_increment = scan_data.angle_increment
+            range_indices = int(angle_range / angle_increment)
+            self.get_logger().info(f"range_indices={range_indices}")
+            front_indices = ranges[center_index - range_indices // 2 : center_index + range_indices // 2]
 
-        # Publish drive command
-        self.publish_drive_command(best_angle)
-
-        # Publish marker for steering path
-        self.publish_steer_marker(best_angle)
+            # Check for obstacles within the safety radius in the specified range
+            if np.any(front_indices < self.safety_radius):
+                self.publish_stop_command()
+                self.get_logger().info("Obstacle detected in front! Stopping the car.")
+            else:
+                safe_ranges = np.where(ranges > self.safety_radius, ranges, 0)
+                best_angle = self.find_best_gap(safe_ranges, scan_data.angle_min, scan_data.angle_increment)
+                #self.get_logger().info(f"best_angle = {best_angle} \n  safe_ranges={safe_ranges} \n ranges={ranges}")
+                self.publish_drive_command(best_angle)
+                self.publish_steer_marker(best_angle)
 
     def find_best_gap(self, ranges, angle_min, angle_increment):
         safe_indices = np.where(ranges > 0)[0]
@@ -46,6 +56,11 @@ class FollowTheGapNode(Node):
         largest_gap = max(np.split(safe_indices, np.where(np.diff(safe_indices) > 1)[0] + 1), key=len)
         mid_index = (largest_gap[0] + largest_gap[-1]) // 2
         return angle_min + mid_index * angle_increment
+    def publish_stop_command(self):
+        drive_msg = AckermannDriveStamped()
+        drive_msg.drive.speed = 0.0
+        drive_msg.drive.steering_angle = 0.0
+        self.drive_pub.publish(drive_msg)
 
     def publish_drive_command(self, best_angle):
         drive_msg = AckermannDriveStamped()
